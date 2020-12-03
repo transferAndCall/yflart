@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "ganache": "ganache-cli -m 'marriage box whip grocery cheese certain upgrade nurse celery whisper arch flock'",
+    "test": "truffle test --network test"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^3.3.0"
+  },
+  "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.9"
+  }
+}
