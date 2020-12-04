@@ -161,9 +161,10 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     require(token.yflAmount > 0, "!registered");
     yYFL.YFL().safeTransferFrom(msg.sender, address(this), token.yflAmount);
     IERC20(token.paymentToken).safeTransferFrom(msg.sender, address(this), token.paymentAmount);
-    uint256 splitFee = token.paymentAmount.div(2);
-    IERC20(token.paymentToken).safeTransfer(token.artist, splitFee);
-    IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), splitFee);
+    uint256 serviceFee = token.paymentAmount.div(100).mul(80);
+    uint256 artistFee = token.paymentAmount.sub(serviceFee);
+    IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), serviceFee);
+    IERC20(token.paymentToken).safeTransfer(token.artist, artistFee);
     balances[_tokenId] = token.yflAmount;
     yflLocked = yflLocked.add(token.yflAmount);
     _mint(msg.sender, _tokenId);
@@ -259,10 +260,9 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     Registry memory token = registry[_tokenId];
     if (token.paymentAmount > 0 && _exists(_tokenId)) {
       IERC20(token.paymentToken).safeTransferFrom(_to, address(this), token.paymentAmount);
-      uint256 serviceFee = token.paymentAmount.div(100).mul(80);
-      uint256 artistFee = token.paymentAmount.sub(serviceFee);
-      IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), serviceFee);
-      IERC20(token.paymentToken).safeTransfer(token.artist, artistFee);
+      uint256 splitFee = token.paymentAmount.div(2);
+      IERC20(token.paymentToken).safeTransfer(token.artist, splitFee);
+      IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), splitFee);
     }
   }
 
