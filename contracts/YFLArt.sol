@@ -139,6 +139,10 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     _register(_tokenId, _tokenURI, _artist, _paymentToken, _paymentAmount, _yflAmount);
   }
 
+  function setBaseURI(string memory _baseURI) external onlyOwner() {
+    _setBaseURI(_baseURI);
+  }
+
   /**
    * EXTERNAL FUNCTIONS
    * (USER FUNCTIONS)
