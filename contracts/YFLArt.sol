@@ -12,7 +12,7 @@ import "./IyYFL.sol";
  * @title YFLArt
  * @notice The YFLArt NFT contract allows NFTs to be registered and bought
  * which are backed by a specific amount of YFL. NFTs can also optionally
- * charge a fee of any token that must be paid on purchase and any transfer.
+ * charge a fee of any token that must be paid on purchase.
  */
 contract YFLArt is ERC721, Ownable, SignerRole {
   using Address for address;
@@ -240,8 +240,6 @@ contract YFLArt is ERC721, Ownable, SignerRole {
   /**
    * @notice This function is called before any NFT token transfer
    * @dev Requires the NFT to be backed by YFL before transferring
-   * @dev Requires the serviceFee (determined on registration) to be paid for each transfer
-   * @dev If sent to a contract address, no paymentToken fee is required
    */
   function _beforeTokenTransfer(
     address _from,
@@ -253,16 +251,6 @@ contract YFLArt is ERC721, Ownable, SignerRole {
   {
     if (!isFunded(_tokenId)) {
       fund(_tokenId);
-    }
-    if (_to.isContract()) {
-      return;
-    }
-    Registry memory token = registry[_tokenId];
-    if (token.paymentAmount > 0 && _exists(_tokenId)) {
-      IERC20(token.paymentToken).safeTransferFrom(_to, address(this), token.paymentAmount);
-      uint256 splitFee = token.paymentAmount.div(2);
-      IERC20(token.paymentToken).safeTransfer(token.artist, splitFee);
-      IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), splitFee);
     }
   }
 

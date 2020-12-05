@@ -149,12 +149,6 @@ contract('YFLArt', ([deployer, user1, user2, signer, artist, treasury]) => {
       })
 
       it('should transfer from the owner to the new user', async () => {
-        // receiver must approve payment token
-        await expectRevert(
-          this.yflart.transferFrom(user1, user2, 0, { from: user1 }),
-          'ERC20: transfer amount exceeds allowance.'
-        )
-        await this.paymentToken.approve(this.yflart.address, ether('1'), { from: user2 })
         assert.equal(user1, await this.yflart.ownerOf(0))
         await this.yflart.transferFrom(user1, user2, 0, { from: user1 })
         assert.equal(user2, await this.yflart.ownerOf(0))
@@ -166,8 +160,6 @@ contract('YFLArt', ([deployer, user1, user2, signer, artist, treasury]) => {
         await this.yflart.approve(this.market.address, 0, { from: user1 })
         await this.market.deposit(0, { from: user1 })
         assert.equal(this.market.address, await this.yflart.ownerOf(0))
-        // the buyer from the contract must pay the service fee
-        await this.paymentToken.approve(this.yflart.address, ether('1'), { from: user2 })
         await this.market.purchase(0, { from: user2 })
         assert.equal(user2, await this.yflart.ownerOf(0))
       })
@@ -223,7 +215,6 @@ contract('YFLArt', ([deployer, user1, user2, signer, artist, treasury]) => {
         'ERC20: transfer amount exceeds allowance.'
       )
       await this.yfl.approve(this.yflart.address, ether('1'), { from: user1 })
-      await this.paymentToken.approve(this.yflart.address, ether('1'), { from: user2 })
       await this.yflart.transferFrom(user1, user2, 0, { from: user1 })
       // transferring NFTs after approving YFLArt to spend YFL moves YFL with the NFT
       assert.isTrue(await this.yflart.isFunded(0))
