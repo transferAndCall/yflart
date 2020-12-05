@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract MockyYFI is ERC20, ReentrancyGuard {
+contract MockyYFL is ERC20, ReentrancyGuard {
   using SafeERC20 for IERC20;
   IERC20 public immutable YFL;
   address public immutable treasury;

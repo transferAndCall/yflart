@@ -23,7 +23,9 @@ contract YFLArt is ERC721, Ownable, SignerRole {
 
   struct Registry {
     string tokenURI;
+    address originalBuyer;
     address artist;
+    address reseller;
     address paymentToken;
     uint256 paymentAmount;
     uint256 yflAmount;
@@ -36,6 +38,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
   event Registered(
     uint256 _tokenId,
     string _tokenURI,
+    address _originalBuyer,
     address _artist,
     address _paymentToken,
     uint256 _paymentAmount,
@@ -73,6 +76,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
    * @param _r First 32 bytes of the signature
    * @param _s Second 32 bytes of the signature
    * @param _tokenURI The token URI of the NFT
+   * @param _originalBuyer The address of the original buyer
    * @param _artist The address of the artist
    * @param _paymentToken The address of the token for payment
    * @param _paymentAmount The amount of payment of the payment token
@@ -84,6 +88,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     bytes32 _r,
     bytes32 _s,
     string memory _tokenURI,
+    address _originalBuyer,
     address _artist,
     address _paymentToken,
     uint256 _paymentAmount,
@@ -95,7 +100,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
         keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32",
         keccak256(abi.encodePacked(_tokenId)))), _v, _r, _s)),
       "!signer");
-    _register(_tokenId, _tokenURI, _artist, _paymentToken, _paymentAmount, _yflAmount);
+    _register(_tokenId, _tokenURI, _originalBuyer, _artist, _paymentToken, _paymentAmount, _yflAmount);
   }
 
   /**
@@ -120,6 +125,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
    * @notice Called by the owner to register the pre-sale of an NFT
    * @param _tokenId The unique ID of the NFT
    * @param _tokenURI The token URI of the NFT
+   * @param _originalBuyer The address of the original buyer
    * @param _artist The address of the artist
    * @param _paymentToken The address of the token for payment
    * @param _paymentAmount The amount of payment of the payment token
@@ -128,6 +134,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
   function register(
     uint256 _tokenId,
     string memory _tokenURI,
+    address _originalBuyer,
     address _artist,
     address _paymentToken,
     uint256 _paymentAmount,
@@ -136,7 +143,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     external
     onlyOwner()
   {
-    _register(_tokenId, _tokenURI, _artist, _paymentToken, _paymentAmount, _yflAmount);
+    _register(_tokenId, _tokenURI, _originalBuyer, _artist, _paymentToken, _paymentAmount, _yflAmount);
   }
 
   /**
@@ -165,14 +172,28 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     require(token.yflAmount > 0, "!registered");
     yYFL.YFL().safeTransferFrom(msg.sender, address(this), token.yflAmount);
     IERC20(token.paymentToken).safeTransferFrom(msg.sender, address(this), token.paymentAmount);
-    uint256 serviceFee = token.paymentAmount.div(100).mul(80);
-    uint256 artistFee = token.paymentAmount.sub(serviceFee);
-    IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), serviceFee);
-    IERC20(token.paymentToken).safeTransfer(token.artist, artistFee);
     balances[_tokenId] = token.yflAmount;
     yflLocked = yflLocked.add(token.yflAmount);
-    _mint(msg.sender, _tokenId);
-    _setTokenURI(_tokenId, token.tokenURI);
+    if (!_exists(_tokenId)) {
+      if (token.originalBuyer != address(0)) {
+        require(msg.sender == token.originalBuyer, "!originalBuyer");
+      }
+      uint256 serviceFee = token.paymentAmount.div(100).mul(80);
+      uint256 artistFee = token.paymentAmount.sub(serviceFee);
+      IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), serviceFee);
+      IERC20(token.paymentToken).safeTransfer(token.artist, artistFee);
+      _mint(msg.sender, _tokenId);
+      _setTokenURI(_tokenId, token.tokenURI);
+    } else {
+      require(ownerOf(_tokenId) == address(this), "!buy");
+      uint256 resellerFee = token.paymentAmount.div(100).mul(90);
+      uint256 remainingFee = token.paymentAmount.sub(resellerFee);
+      remainingFee = remainingFee.div(2);
+      IERC20(token.paymentToken).safeTransfer(token.reseller, resellerFee);
+      IERC20(token.paymentToken).safeTransfer(yYFL.treasury(), remainingFee);
+      IERC20(token.paymentToken).safeTransfer(token.artist, remainingFee);
+      _transfer(address(this), msg.sender, _tokenId);
+    }
   }
 
   /**
@@ -190,21 +211,26 @@ contract YFLArt is ERC721, Ownable, SignerRole {
   }
 
   /**
-   * @notice Called by the owner of the NFT to unstake the backed YFL from governance
+   * @notice Called by the owner of the NFT to resell the NFT
    * @param _tokenId The ID of the registered NFT
+   * @param _paymentToken The address of the token for payment
+   * @param _paymentAmount The amount of payment of the payment token
    */
-  function unstake(uint256 _tokenId) external {
-    require(msg.sender == ownerOf(_tokenId), "!ownerOf");
-    require(!isFunded(_tokenId), "funded");
+  function resell(
+    uint256 _tokenId,
+    address _paymentToken,
+    uint256 _paymentAmount
+  )
+    external
+  {
+    transferFrom(msg.sender, address(this), _tokenId);
+    registry[_tokenId].reseller = msg.sender;
+    registry[_tokenId].paymentToken = _paymentToken;
+    registry[_tokenId].paymentAmount = _paymentAmount;
     uint256 amount = registry[_tokenId].yflAmount;
-    balances[_tokenId] = amount;
-    yflLocked = yflLocked.add(amount);
-    IERC20(yYFL).transferFrom(msg.sender, address(this), amount);
-    yYFL.withdraw(amount);
-    uint256 balanceDiff = yYFL.YFL().balanceOf(address(this)).sub(amount);
-    if (balanceDiff > 0) {
-      yYFL.YFL().safeTransfer(msg.sender, balanceDiff);
-    }
+    yflLocked = yflLocked.sub(amount);
+    delete balances[_tokenId];
+    yYFL.YFL().safeTransfer(msg.sender, amount);
   }
 
   /**
@@ -264,6 +290,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
   function _register(
     uint256 _tokenId,
     string memory _tokenURI,
+    address _originalBuyer,
     address _artist,
     address _paymentToken,
     uint256 _paymentAmount,
@@ -277,12 +304,22 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     require(_artist != address(0), "!_artist");
     registry[_tokenId] = Registry({
       tokenURI: _tokenURI,
+      originalBuyer: _originalBuyer,
       artist: _artist,
+      reseller: address(0),
       paymentToken: _paymentToken,
       paymentAmount: _paymentAmount,
       yflAmount: _yflAmount
     });
-    emit Registered(_tokenId, _tokenURI, _artist, _paymentToken, _paymentAmount, _yflAmount);
+    emit Registered(
+      _tokenId,
+      _tokenURI,
+      _originalBuyer,
+      _artist,
+      _paymentToken,
+      _paymentAmount,
+      _yflAmount
+    );
   }
 
   /**
