@@ -120,7 +120,11 @@ contract('YFLArt', ([deployer, user1, user2, signer, artist, treasury]) => {
       )
       await this.paymentToken.approve(this.yflart.address, ether('100'), { from: user1 })
       // buying works
+      assert.isTrue(ether('0').eq(await this.paymentToken.balanceOf(treasury)))
+      assert.isTrue(ether('0').eq(await this.paymentToken.balanceOf(artist)))
       await this.yflart.buy(0, { from: user1 })
+      assert.isTrue(ether('.8').eq(await this.paymentToken.balanceOf(treasury)))
+      assert.isTrue(ether('.2').eq(await this.paymentToken.balanceOf(artist)))
       // same id cannot be used to buy again
       await expectRevert(
         this.yflart.buy(0, { from: user1 }),
