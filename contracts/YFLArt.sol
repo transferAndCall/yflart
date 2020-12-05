@@ -113,7 +113,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     if (address(_token) == address(yYFL.YFL())) {
       require(_amount <= yYFL.YFL().balanceOf(address(this)).sub(yflLocked), "!_amount");
     }
-    _token.safeTransfer(_receiver, _amount);
+    _token.transfer(_receiver, _amount);
   }
 
   /**
@@ -186,7 +186,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     delete balances[_tokenId];
     yflLocked = yflLocked.sub(amount);
     uint256 shares = _stake(amount);
-    IERC20(yYFL).safeTransfer(msg.sender, shares);
+    IERC20(yYFL).transfer(msg.sender, shares);
   }
 
   /**
@@ -199,7 +199,7 @@ contract YFLArt is ERC721, Ownable, SignerRole {
     uint256 amount = registry[_tokenId].yflAmount;
     balances[_tokenId] = amount;
     yflLocked = yflLocked.add(amount);
-    IERC20(yYFL).safeTransferFrom(msg.sender, address(this), amount);
+    IERC20(yYFL).transferFrom(msg.sender, address(this), amount);
     yYFL.withdraw(amount);
     uint256 balanceDiff = yYFL.YFL().balanceOf(address(this)).sub(amount);
     if (balanceDiff > 0) {

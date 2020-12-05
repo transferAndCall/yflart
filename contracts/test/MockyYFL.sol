@@ -3,8 +3,9 @@ pragma solidity ^0.6.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract MockyYFI is ERC20 {
+contract MockyYFI is ERC20, ReentrancyGuard {
   using SafeERC20 for IERC20;
   IERC20 public immutable YFL;
   address public immutable treasury;
@@ -44,5 +45,30 @@ contract MockyYFI is ERC20 {
 
   function getPricePerFullShare() external view returns (uint256) {
     return YFL.balanceOf(address(this)).mul(1e18).div(totalSupply());
+  }
+
+  // ERC20 functions (overridden to add modifiers)
+  function transfer(address recipient, uint256 amount) public override nonReentrant returns (bool) {
+      super.transfer(recipient, amount);
+  }
+
+  function approve(address spender, uint256 amount) public override nonReentrant returns (bool) {
+      super.approve(spender, amount);
+  }
+
+  function transferFrom(
+      address sender,
+      address recipient,
+      uint256 amount
+  ) public override nonReentrant returns (bool) {
+      super.transferFrom(sender, recipient, amount);
+  }
+
+  function increaseAllowance(address spender, uint256 addedValue) public override nonReentrant returns (bool) {
+      super.increaseAllowance(spender, addedValue);
+  }
+
+  function decreaseAllowance(address spender, uint256 subtractedValue) public override nonReentrant returns (bool) {
+      super.decreaseAllowance(spender, subtractedValue);
   }
 }
